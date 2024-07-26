@@ -1,0 +1,17 @@
+name: Hourly API Call
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # This schedule runs the job every hour on the hour
+
+jobs:
+  call-api:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Make API POST request
+      run: |
+        curl -X POST https://mtsranks.vercel.app/store-data
