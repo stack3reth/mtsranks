@@ -3,12 +3,36 @@ name: Hourly API Call
 on:
   schedule:
     - cron: '0 * * * *'  # Runs at the top of every hour
+  push:
+    branches:
+      - main
 
 jobs:
   call-api:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Get Current Time
+      id: get_time
+      run: echo "CURRENT_TIME=$(date -u)" >> $GITHUB_ENV
+
     - name: Make API POST request
+      id: api_call
       run: |
-        curl -X POST https://mtsranks.vercel.app/store-data
+        RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST https://mtsranks.vercel.app/store-data)
+        echo "API_RESPONSE_CODE=$RESPONSE" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Send Notification to Line
+      env:
+        LINE_NOTIFY_TOKEN: ${{ secrets.LINE_NOTIFY_TOKEN }}
+        CURRENT_TIME: ${{ env.CURRENT_TIME }}
+        API_RESPONSE_CODE: ${{ env.API_RESPONSE_CODE }}
+      run: |
+        if [ $API_RESPONSE_CODE -eq 200 ]; then
+          STATUS="Success"
+        else
+          STATUS="Failed"
+        fi
+        MESSAGE="Time: $CURRENT_TIME\nStatus: $STATUS\nResponse Code: $API_RESPONSE_CODE"
+        curl -X POST -H "Authorization: Bearer $LINE_NOTIFY_TOKEN" -F "message=$MESSAGE" https://notify-api.line.me/api/notify
